@@ -71,9 +71,44 @@
 
       <button class="button parenthesis">(</button>
       <button class="button parenthesis">)</button>
+      <button class="button clear">C</button>
+
     </div>
 
     <script>
+        class Node{
+            constructor(val = null, left = null, right = null) {
+                this.val = val;
+                this.left = left;
+                this.right = right;
+            }
+        }
+
+        class Stack{
+            constructor() {
+                this.head = null;
+
+            }
+            push(node) {
+                if (!this.head) {
+                    this.head = node;
+                }
+                else {
+                    node.next = this.head;
+                    this.head = node;
+                }
+            }
+            pop() {
+                if (this.head) {
+                    let popped = this.head;
+                    this.head = this.head.next;
+                    return popped;
+                }
+                else {
+                    throw new Error("Stack is empty");
+                }
+            }
+        }
       const numbersArr = Array.from(document.getElementsByClassName("number"));
       const operatorsArr = Array.from(document.getElementsByClassName("operator"));
       const parenthesisArr = Array.from(document.getElementsByClassName("parenthesis"));
@@ -148,6 +183,118 @@
         elem.addEventListener("click", (evt) => {
           data.appendStringParenthesis(elem.innerText);
         });
+      });
+
+      data.clear = () => {
+        data.displayString = "0";
+        data.updateDisplay();
+      }
+
+      document.querySelector(".clear").addEventListener("click", () => {
+        data.clear();
+      });
+
+      function readInput(expression) {
+        const input = [];
+        let nextIn = "";
+        for (let i = 0; i < expression.length; i++) {
+            const char = expression[i];
+            if ((char >= "0" && char <= "9") || char === ".") { // if next character is a number or decimal
+                nextIn += char;
+            }
+            else { // if next character is an operator, add to expression and reset nextIn
+                if (nextIn !== "" && char === "(") {
+                    input.push(nextIn);
+                    input.push("*");
+                    nextIn = "";
+                }
+                if (["+", "-", "*", "/", "(", ")"].includes(char)) {
+                    if (nextIn !== "") {
+                        input.push(nextIn);
+                        nextIn = "";
+                    }
+                    input.push(char);
+                }
+            }
+        }
+        // if there is a final number, add to expression
+        if (nextIn !== "") {
+            input.push(nextIn);
+        }
+        return input;
+      }
+
+      function buildExpressionTree(input) {
+        const stack = new Stack();
+        const operators = new Stack();
+        const precedence = { "+": 1, "-": 1, "*": 2, "/": 2 };
+
+        for (let inp of input) {
+            if (["+", "-", "*", "/"].includes(inp)) {
+                while (operators.head && precedence[operators.head.val] >= precedence[inp]) {
+                    let op = operators.pop();
+                    let right = stack.pop();
+                    let left = stack.pop();
+                    stack.push(new Node(op.val, left, right));
+                }
+                operators.push(new Node(inp));
+            }
+            else if (inp === "(") {
+                operators.push(new Node(inp));
+            }
+            else if (inp === ")") {
+                while (operators.head && operators.head.val !== "(") {
+                    let op = operators.pop();
+                    let right = stack.pop();
+                    let left = stack.pop();
+                    stack.push(new Node(op.val, left, right));
+                }
+                operators.pop();
+            }
+            else {
+                stack.push(new Node(inp));
+            }
+        }
+
+        while (operators.head) {
+            let op = operators.pop();
+            let right = stack.pop();
+            let left = stack.pop();
+            stack.push(new Node(op.val, left, right));
+        }
+        return stack.pop();
+      }
+
+      function evaluateTree(root) {
+        if (!root) {
+            return 0;
+        }
+        if (!isNaN(root.val)) {
+            return parseFloat(root.val);
+        }
+
+        const leftVal = evaluateTree(root.left);
+        const rightVal = evaluateTree(root.right);
+
+        switch (root.val) {
+            case "+":
+                return leftVal + rightVal;
+            case "-":
+                return leftVal - rightVal;
+            case "*":
+                return leftVal * rightVal;
+            case "/":
+                return leftVal / rightVal;
+        }
+      }
+
+      document.querySelector(".equals").addEventListener("click", () => {
+        const expression = data.displayString;
+        const input = readInput(expression);
+        const root = buildExpressionTree(input);
+        const result = evaluateTree(root);
+        data.displayString = result.toString();
+        data.updateDisplay();
       });
     </script>
   </body>
